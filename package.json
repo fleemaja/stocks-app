@@ -1,0 +1,31 @@
+{
+  "name": "websockets-stocks-viewer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fleemaja/stocks-app.git"
+  },
+  "homepage": "",
+  "keywords": [
+    "MongoDB",
+    "Mongoose",
+    "full stack",
+    "Express",
+    "Node",
+    "javascript",
+    "websockets",
+    "d3"
+  ],
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^1.2.0",
+    "ejs": "^2.5.1",
+    "express": "^4.12.4",
+    "highcharts": "^4.2.6",
+    "mongoose": "^4.1.0"
+  }
+}

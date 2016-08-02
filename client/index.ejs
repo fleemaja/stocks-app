@@ -1,0 +1,75 @@
+<html>
+    <head>
+        <title>STOCKS</title>
+    </head>
+    
+    <body>
+        <div class="stock-boxes">
+            <% stocks.forEach(function(stock) { %>
+                <div class="stock-box" data-name="<%= stock.name %>">
+                    <p><%= "Code: " + stock.code %></p>
+                    <p><%= "Name: " + stock.name %></p>
+                    <button class="btn btn-danger" id="<%= stock.code %>">Remove</button>
+                </div>
+            <% }) %>
+        </div>
+        
+    <form action="/" method="post">
+        <fieldset class="form-group">
+            <label for="stock-code">Stock Code:</label>
+            <input name="code" type="text" class="form-control" id="stock-code" placeholder="Enter Stock Code">
+        </fieldset>
+        <fieldset class="form-group">
+            <label for="stock-name">Stock Name:</label>
+            <input name="name" class="form-control" id="stock-name" placeholder="Enter Stock Name">
+        </fieldset>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    
+    <script>
+        var socket;
+        var url = 'https://stocks-app-fleemaja.c9users.io/';
+        
+        socket = io.connect(url);
+        
+        $(document).on('click', '.btn-primary', function(e){
+            e.preventDefault();
+            var code = $('#stock-code').val();
+            var name = $('#stock-name').val();
+            
+            $('#stock-code').val(""); $('#stock-name').val("");
+    
+            $.ajax({
+                url: url,
+                type: 'post',
+                data: {
+                    code: code,
+                    name: name
+                }
+            });
+            
+            var html = "<div class='stock-box' data-name=" + name + "><p>Code: " + code + "</p>";
+            html += "<p>Name: " + name + "</p>";
+            html += "<button class='btn btn-danger' id=" + code + ">Remove</button></div>";
+            $('.stock-boxes').append(html);
+        });
+        
+        $(document).on('click', '.btn-danger', function(e){
+            e.preventDefault();
+            $(e.target).parent().hide();
+            var name = $(e.target).parent().data("name");
+            $.ajax({
+                type: 'delete',
+                url: url,
+                data: {
+                    name: name
+                }
+            });
+        });
+    </script>
+    
+    </body>
+</html>

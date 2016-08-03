@@ -1,9 +1,34 @@
+<!DOCTYPE html>
+
 <html>
     <head>
         <title>STOCKS</title>
+    
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" type="text/css">
+        <style>
+            
+            #container {
+                height: 400px;
+                min-width: 310px;
+            }
+            
+            #page-label {
+                text-align: center;
+                font-size: 48px;
+                font-family: 'Futura';
+            }
+        </style>
     </head>
     
     <body>
+        <div id="page-label">
+            <i class="fa fa-money" aria-hidden="true"></i> Stocks
+        </div>
+        
+        <div id="container">
+            
+        </div>
+        
         <div class="stock-boxes">
             <% stocks.forEach(function(stock) { %>
                 <div class="stock-box" data-name="<%= stock.name %>">
@@ -28,12 +53,20 @@
     
     <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
     
     <script>
         var socket;
         var url = 'https://stocks-app-fleemaja.c9users.io/';
         
         socket = io.connect(url);
+        
+        function Comparator(a, b) {
+           if (a[0] < b[0]) return -1;
+           if (a[0] > b[0]) return 1;
+           return 0;
+         }
         
         $(document).on('click', '.btn-primary', function(e){
             e.preventDefault();
@@ -67,6 +100,103 @@
                 data: {
                     name: name
                 }
+            });
+        });
+        
+        $(function () {
+            var now = new Date();
+            var year = now.getFullYear();
+            var month = now.getMonth() + 1;
+            var date = now.getDate();
+            
+            var seriesOptions = [],
+                seriesCounter = 0,
+                names = ['AAPL'];
+        
+            /**
+             * Create the chart when all data is loaded
+             * @returns {undefined}
+             */
+            function createChart() {
+        
+                $('#container').highcharts('StockChart', {
+                    
+                    rangeSelector: {
+                        enabled: false
+                    },
+                    
+                    navigator : {
+                        enabled : false
+                    },
+                    
+                    credits: {
+                        enabled: false
+                    },
+                    
+                    scrollbar : {
+                        enabled : false
+                    },
+                    
+                    exporting: {
+                        enabled: false
+                    },
+        
+                    yAxis: {
+                        labels: {
+                            formatter: function () {
+                                return (this.value > 0 ? ' + ' : '') + this.value + '%';
+                            }
+                        },
+                        plotLines: [{
+                            value: 0,
+                            width: 2,
+                            color: 'silver'
+                        }]
+                    },
+        
+                    plotOptions: {
+                        series: {
+                            compare: 'percent'
+                        }
+                    },
+        
+                    tooltip: {
+                        pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}</b> ({point.change}%)<br/>',
+                        valueDecimals: 2
+                    },
+        
+                    series: seriesOptions
+                });
+            }
+        
+            $.each(names, function (i, name) {
+                
+                // $.getJSON('https://www.highcharts.com/samples/data/jsonp.php?filename=' + name.toLowerCase() + '-c.json&callback=?',    function (data) {
+                $.getJSON('https://www.quandl.com/api/v3/datasets/WIKI/' + name + '.json?api_key=' + '<%= process.env.QUANDL_KEY %>' + '&start_date=' + (year - 1) + '-' + month  + '-' + date + '&end_date=' + year + '-' + month + '-' + date,    function (data) {
+                    var dataset = data['dataset']['data'];
+                    var formattedData = [];
+                    
+                    dataset.forEach(function(d) {
+                        var date = new Date(d[0]).getTime();
+                        var openPrice = d[1];
+                        formattedData.push([parseInt(date), openPrice]);
+                    });
+                    
+                    formattedData.sort(Comparator);
+                    
+                    seriesOptions[i] = {
+                        name: name,
+                        data: formattedData
+                    };
+        
+                    // As we're loading the data asynchronously, we don't know what order it will arrive. So
+                    // we keep a counter and create the chart when all the data is loaded.
+                    seriesCounter += 1;
+        
+                    if (seriesCounter === names.length) {
+                        createChart();
+                    }
+                });
             });
         });
     </script>

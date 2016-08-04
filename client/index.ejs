@@ -3,13 +3,15 @@
 <html>
     <head>
         <title>STOCKS</title>
-    
+        
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" type="text/css">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" type="text/css">
         <style>
             
             #container {
                 height: 400px;
                 min-width: 310px;
+                margin: 10px 30px 30px 30px;
             }
             
             #page-label {
@@ -17,39 +19,65 @@
                 font-size: 48px;
                 font-family: 'Futura';
             }
+            
+            .stock-box {
+                background: #e3e3e3;
+                color: #444;
+                font-weight: 900;
+                display: inline-block;
+                padding: 10px;
+                border-radius: 25px;
+                margin: 10px;
+            }
+            
+            .btn-danger {
+                float: right;
+                background: #FF8F66;
+                border: none;
+                padding: 0px 5px;
+            }
+            
+            form, fieldset, btn-primary, .stock-boxes {
+                display: inline;
+            }
+            
+            form {
+                margin-left: 80px;
+                margin-right: 20px;
+            }
+            
+            #error-message {
+                color: #FF8F66;
+            }
         </style>
     </head>
     
     <body>
         <div id="page-label">
-            <i class="fa fa-money" aria-hidden="true"></i> Stocks
+            <i class="fa fa-usd" aria-hidden="true"></i>tocks
         </div>
         
         <div id="container">
             
         </div>
         
+        <form action="/" method="post">
+            <fieldset class="form-group">
+                <label for="stock-code">Add Stock Code:</label>
+                <p id="error-message">Incorrect or not existing stock code</p>
+                <input name="code" type="text" class="form-control" id="stock-code" placeholder="Enter Stock Code">
+            </fieldset>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+        
         <div class="stock-boxes">
             <% stocks.forEach(function(stock) { %>
-                <div class="stock-box" data-name="<%= stock.name %>">
-                    <p><%= "Code: " + stock.code %></p>
-                    <p><%= "Name: " + stock.name %></p>
-                    <button class="btn btn-danger" id="<%= stock.code %>">Remove</button>
+                <div class="stock-box" data-code="<%= stock.code %>">
+                    <button class="btn btn-danger" id="<%= stock.code %>">X</button>
+                    <p><%= stock.name.slice(0, stock.name.indexOf(" Prices")) %></p>
                 </div>
             <% }) %>
         </div>
-        
-    <form action="/" method="post">
-        <fieldset class="form-group">
-            <label for="stock-code">Stock Code:</label>
-            <input name="code" type="text" class="form-control" id="stock-code" placeholder="Enter Stock Code">
-        </fieldset>
-        <fieldset class="form-group">
-            <label for="stock-name">Stock Name:</label>
-            <input name="name" class="form-control" id="stock-name" placeholder="Enter Stock Name">
-        </fieldset>
-        <button type="submit" class="btn btn-primary">Submit</button>
-    </form>
     
     <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
@@ -58,7 +86,14 @@
     
     <script>
         var socket;
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = now.getMonth() + 1;
+        var date = now.getDate();
+        
         var url = 'https://stocks-app-fleemaja.c9users.io/';
+        
+        loadChart();
         
         socket = io.connect(url);
         
@@ -67,51 +102,139 @@
            if (a[0] > b[0]) return 1;
            return 0;
          }
+         
+         function UrlExists(url, cb){
+            $.ajax({
+                url:      url,
+                dataType: 'text',
+                type:     'GET',
+                complete:  function(xhr){
+                    if(typeof cb === 'function')
+                       cb.apply(this, [xhr.status]);
+                }
+            });
+        }
+        
+        function quandlURL(name) {
+            return 'https://www.quandl.com/api/v3/datasets/WIKI/' + name + '.json?api_key=' + '<%= process.env.QUANDL_KEY %>' + '&start_date=' + (year - 1) + '-' + month  + '-' + date + '&end_date=' + year + '-' + month + '-' + date
+        }
+        
+        socket.on('add',
+            // When we receive data
+            function(data) {
+                var code = data.code;
+                var name = data.name;
+                var html = "<div class='stock-box' data-code=" + code + ">";
+                html += "<button class='btn btn-danger' id=" + code + ">X</button>";
+                html += "<p>" + name.slice(0, name.indexOf(" Prices")) + "</p></div>";
+                $('.stock-boxes').append(html);
+                loadChart();
+            }
+        );
+        
+        socket.on('remove',
+            function(data) {
+                var code = data.code.toUpperCase();
+                
+                $('.stock-box').each(function() {
+                    if (code === $(this).data('code').toUpperCase()) {
+                        $(this).remove();
+                    }
+                });
+                loadChart();
+            }
+        );
         
         $(document).on('click', '.btn-primary', function(e){
             e.preventDefault();
             var code = $('#stock-code').val();
-            var name = $('#stock-name').val();
+            var name;
+            var quandl = quandlURL(code);
             
-            $('#stock-code').val(""); $('#stock-name').val("");
-    
-            $.ajax({
-                url: url,
-                type: 'post',
-                data: {
-                    code: code,
-                    name: name
+            UrlExists(quandl, function(status){
+                if (status === 200) {
+                    $('#stock-code').val("");
+                    
+                    $.ajax({
+                        url: quandl,
+                        type: 'get',
+                        success: function(data) {
+                            name = data['dataset']['name'];
+                            var repeat = false;
+                            $('.stock-box').each(function() {
+                                if (code.toUpperCase() === $(this).data('code').toUpperCase()) {
+                                    repeat = true;
+                                }
+                            });
+                            if (!repeat) {
+                                var html = "<div class='stock-box' data-code=" + code + ">";
+                                html += "<button class='btn btn-danger' id=" + code + ">X</button>";
+                                html += "<p>" + name.slice(0, name.indexOf(" Prices")) + "</p></div>";
+                                $('.stock-boxes').append(html);
+                                sendAdd(code, name);
+                                loadChart();
+                                $.ajax({
+                                    url: url,
+                                    type: 'post',
+                                    data: {
+                                        code: code,
+                                        name: name
+                                    }
+                                });
+                            }
+                        }
+                    });
+                } else if (status === 404) {
+                    $('#error-message').show();
                 }
             });
-            
-            var html = "<div class='stock-box' data-name=" + name + "><p>Code: " + code + "</p>";
-            html += "<p>Name: " + name + "</p>";
-            html += "<button class='btn btn-danger' id=" + code + ">Remove</button></div>";
-            $('.stock-boxes').append(html);
         });
+        
+        // Function for sending to the socket
+        function sendAdd(code, name) {
+
+          var data = {
+            code: code,
+            name: name
+          };
+        
+          // Send that object to the socket
+          socket.emit('add', data);
+        }
+        
+        function sendRemove(code) {
+            var data = {
+                code: code
+            };
+            
+            socket.emit('remove', data);
+        }
         
         $(document).on('click', '.btn-danger', function(e){
             e.preventDefault();
-            $(e.target).parent().hide();
-            var name = $(e.target).parent().data("name");
+            var code = $(e.target).parent().data("code");
+            sendRemove(code);
+            $(e.target).parent().remove();
             $.ajax({
                 type: 'delete',
                 url: url,
                 data: {
-                    name: name
+                    code: code
                 }
             });
+            loadChart();
         });
         
-        $(function () {
-            var now = new Date();
-            var year = now.getFullYear();
-            var month = now.getMonth() + 1;
-            var date = now.getDate();
+        function loadChart() {
             
             var seriesOptions = [],
                 seriesCounter = 0,
-                names = ['AAPL'];
+                names = [];
+                $('.stock-box').each(function() {
+                    names.push($( this ).data('code'));
+                });
+                
+            $('#error-message').hide();
         
             /**
              * Create the chart when all data is loaded
@@ -168,37 +291,48 @@
                     series: seriesOptions
                 });
             }
-        
+
             $.each(names, function (i, name) {
+                var url = quandlURL(name);
                 
-                // $.getJSON('https://www.highcharts.com/samples/data/jsonp.php?filename=' + name.toLowerCase() + '-c.json&callback=?',    function (data) {
-                $.getJSON('https://www.quandl.com/api/v3/datasets/WIKI/' + name + '.json?api_key=' + '<%= process.env.QUANDL_KEY %>' + '&start_date=' + (year - 1) + '-' + month  + '-' + date + '&end_date=' + year + '-' + month + '-' + date,    function (data) {
-                    var dataset = data['dataset']['data'];
-                    var formattedData = [];
-                    
-                    dataset.forEach(function(d) {
-                        var date = new Date(d[0]).getTime();
-                        var openPrice = d[1];
-                        formattedData.push([parseInt(date), openPrice]);
-                    });
-                    
-                    formattedData.sort(Comparator);
-                    
-                    seriesOptions[i] = {
-                        name: name,
-                        data: formattedData
-                    };
-        
-                    // As we're loading the data asynchronously, we don't know what order it will arrive. So
-                    // we keep a counter and create the chart when all the data is loaded.
-                    seriesCounter += 1;
-        
-                    if (seriesCounter === names.length) {
-                        createChart();
+                UrlExists(url, function(status){
+                    if(status === 200){
+                       // file was found
+                       $.getJSON(url, function (data) {
+                            var dataset = data['dataset']['data'];
+                            var formattedData = [];
+                            
+                            dataset.forEach(function(d) {
+                                var date = new Date(d[0]).getTime();
+                                var openPrice = d[1];
+                                formattedData.push([parseInt(date), openPrice]);
+                            });
+                            
+                            formattedData.sort(Comparator);
+                            
+                            seriesOptions[i] = {
+                                name: name,
+                                data: formattedData
+                            };
+                
+                            // As we're loading the data asynchronously, we don't know what order it will arrive. So
+                            // we keep a counter and create the chart when all the data is loaded.
+                            seriesCounter += 1;
+                
+                            if (seriesCounter === names.length) {
+                                createChart();
+                            }
+                        });
+                    }
+                    else if(status === 404){
+                       // 404 not found
+                       // As we're loading the data asynchronously, we don't know what order it will arrive. So
+                        // we keep a counter and create the chart when all the data is loaded.
+                        seriesCounter += 1;
                     }
                 });
             });
-        });
+        };
     </script>
     
     </body>

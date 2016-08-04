@@ -25,8 +25,38 @@ var server = app.listen(port,  function () {
 
 var io = socket(server);
 
-io.sockets.on('connection', newConnection);
+// Register a callback function to run when we have an individual connection
+// This is run for each individual user that connects
+io.sockets.on('connection',
+  // We are given a websocket object in our function
+  function (socket) {
+  
+    console.log("We have a new client: " + socket.id);
+  
+    // When this user emits, client side: socket.emit('otherevent',some data);
+    socket.on('add',
+      function(data) {
+        // Data comes in as whatever was sent, including objects
+        console.log("Received: 'add'");
+      
+        // Send it to all other clients
+        socket.broadcast.emit('add', data);
+        
+        // This is a way to send to everyone including sender
+        // io.sockets.emit('message', "this goes to everyone");
 
-function newConnection(socket) {
-    console.log("new connection: " + socket.id);
-}
+      }
+    );
+    
+    socket.on('remove',
+      function(data) {
+          console.log("Received: 'remove'");
+          socket.broadcast.emit('remove', data);
+      }
+    )
+    
+    socket.on('disconnect', function() {
+      console.log("Client has disconnected");
+    });
+  }
+);

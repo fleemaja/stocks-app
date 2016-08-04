@@ -231,7 +231,7 @@
                 seriesCounter = 0,
                 names = [];
                 $('.stock-box').each(function() {
-                    names.push($( this ).data('code'));
+                    names.push($( this ).data('code').toUpperCase());
                 });
                 
             $('#error-message').hide();

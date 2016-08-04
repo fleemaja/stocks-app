@@ -25,14 +25,10 @@ exports.create = function(req, res) {
 
 exports.destroy = function(req, res) {
   var code = req.body.code;
-  Stock.find({ code: code }, function (err, stock) {
+  Stock.remove({ code: code }, function (err, stock) {
     if(err) { return handleError(res, err); }
     if(!stock) { return res.status(404).send('Not Found'); }
-
-    stock[0].remove(function(err) {
-        if(err) { return handleError(res, err); }
-        return stock[0];
-    });
+    return stock;
   });
 };
 
